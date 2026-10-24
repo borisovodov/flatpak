@@ -7,7 +7,7 @@ through `flatpak update`.
 ## Install
 
 ```sh
-flatpak remote-add --user borisovodov https://flatpak.doru.family/borisovodov.flatpakrepo
+flatpak remote-add --user borisovodov https://borisovodov.github.io/flatpak/borisovodov.flatpakrepo
 flatpak install borisovodov org.doru.doru
 ```
 
@@ -30,8 +30,9 @@ it with the GPG key (secret `FLATPAK_GPG_KEY`), smoke-installs it from the
 built repository, and publishes it to the `pages` branch — served by GitHub
 Pages at the URL above.
 
-The remote is served from the custom domain `flatpak.doru.family`
-(a CNAME to GitHub Pages; the `pages` branch carries the `CNAME` file).
+The remote is served from GitHub Pages. This is the publisher-level
+repository, so the URL is `borisovodov.github.io` — a per-app custom domain
+would not fit the one-remote-many-apps model.
 
 ## Adding another app
 

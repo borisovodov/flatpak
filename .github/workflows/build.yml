@@ -70,8 +70,6 @@ jobs:
         env:
           FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
         run: |
-          export GNUPGHOME="$PWD/.gnupg-home"
-          mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"
           printf '%s' "${FLATPAK_GPG_KEY}" | gpg --batch --import
           mkdir -p repo
           ostree --repo=repo init --mode=archive
@@ -81,7 +79,6 @@ jobs:
       - name: Smoke test the install from the built repo
         if: steps.check.outputs.version != ''
         run: |
-          export GNUPGHOME="$PWD/.gnupg-home"
           flatpak remote-add --user local "file://${PWD}/repo"
           flatpak install --user -y local org.doru.doru
           flatpak info org.doru.doru
@@ -97,7 +94,6 @@ jobs:
           git rm -rf -q . 2>/dev/null || true
           cp -a ../repo/. .
           cp ../borisovodov.flatpakrepo .
-          echo flatpak.doru.family > CNAME
           git add -A
           git commit -q -m "Build org.doru.doru ${{ steps.check.outputs.version }}"
           git push -f origin pages
