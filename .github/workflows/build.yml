@@ -44,6 +44,8 @@ jobs:
             arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v5
+
       - name: Checkout doru at the release tag
         uses: actions/checkout@v5
         with:
@@ -63,6 +65,13 @@ jobs:
           sudo apt-get install -y -qq flatpak flatpak-builder ostree
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
+      - name: Stamp the release version into the metainfo
+        run: |
+          python3 scripts/stamp-metainfo.py \
+            doru/packaging/metadata/org.doru.doru.metainfo.xml \
+            "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
+
+
       - name: Build the app and the flatpak bundle
         working-directory: doru
         env:
@@ -71,9 +80,7 @@ jobs:
           npm ci
           cd apps/desktop
           npx electron-vite build
-          npx electron-builder --linux flatpak --publish never \
-            -c.flatpak.baseVersion=26.08 -c.flatpak.runtimeVersion=25.08 \
-            -c.flatpak.branch=stable
+          npx electron-builder --linux flatpak --publish never
 
       - name: Smoke test the bundle on this architecture
         run: |

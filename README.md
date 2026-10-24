@@ -13,7 +13,10 @@ flatpak install borisovodov org.doru.doru
 
 The repository is signed with a dedicated GPG key (embedded in the
 `.flatpakrepo` file), so every update is verified against it. Both
-x86_64 and aarch64 builds are published.
+x86_64 and aarch64 builds are published. The `.flatpakrepo` file also
+declares Flathub as the runtime repository (`RuntimeRepo=`), so adding
+this remote offers to add Flathub — the runtime and the Electron base
+app come from there.
 
 ## Apps
 
