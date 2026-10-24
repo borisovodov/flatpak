@@ -91,6 +91,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git worktree add --orphan pages-worktree
           cd pages-worktree
+          git switch -c pages
           git rm -rf -q . 2>/dev/null || true
           cp -a ../repo/. .
           cp ../borisovodov.flatpakrepo .
