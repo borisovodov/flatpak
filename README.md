@@ -12,7 +12,8 @@ flatpak install borisovodov org.doru.doru
 ```
 
 The repository is signed with a dedicated GPG key (embedded in the
-`.flatpakrepo` file), so every update is verified against it.
+`.flatpakrepo` file), so every update is verified against it. Both
+x86_64 and aarch64 builds are published.
 
 ## Apps
 

@@ -2,8 +2,7 @@ name: Build flatpaks
 
 on:
   schedule:
-    # Every four hours, like the other channel bots. The check is a single
-    # API call when nothing changed.
+    # Every four hours. The check is a single API call when nothing changed.
     - cron: '41 */4 * * *'
   workflow_dispatch:
 
@@ -11,8 +10,11 @@ permissions:
   contents: write
 
 jobs:
-  doru:
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
     steps:
       - uses: actions/checkout@v5
       - name: Check for a new doru release
@@ -29,30 +31,39 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
 
+  build:
+    needs: check
+    if: needs.check.outputs.version != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
       - name: Checkout doru at the release tag
-        if: steps.check.outputs.version != ''
         uses: actions/checkout@v5
         with:
           repository: borisovodov/doru
-          ref: ${{ steps.check.outputs.tag }}
+          ref: ${{ needs.check.outputs.tag }}
           path: doru
 
       - uses: actions/setup-node@v5
-        if: steps.check.outputs.version != ''
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: doru/package-lock.json
 
       - name: Install flatpak tooling
-        if: steps.check.outputs.version != ''
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq flatpak flatpak-builder ostree
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
       - name: Build the app and the flatpak bundle
-        if: steps.check.outputs.version != ''
         working-directory: doru
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -60,14 +71,38 @@ jobs:
           npm ci
           cd apps/desktop
           npx electron-vite build
-          # The BaseApp/runtime versions match modern Electron; the bundler
-          # installs them from Flathub on first use.
           npx electron-builder --linux flatpak --publish never \
             -c.flatpak.baseVersion=26.08 -c.flatpak.runtimeVersion=25.08 \
             -c.flatpak.branch=stable
 
-      - name: Import the bundle into the OSTree repository
-        if: steps.check.outputs.version != ''
+      - name: Smoke test the bundle on this architecture
+        run: |
+          mkdir -p /tmp/smoke-repo
+          ostree --repo=/tmp/smoke-repo init --mode=archive
+          flatpak build-import-bundle /tmp/smoke-repo doru/apps/desktop/release/*.flatpak
+          flatpak remote-add --user --no-gpg-verify smoke "file:///tmp/smoke-repo"
+          flatpak install --user -y smoke org.doru.doru//stable
+          flatpak info org.doru.doru
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: doru/apps/desktop/release/*.flatpak
+          if-no-files-found: error
+
+  publish:
+    needs: [check, build]
+    if: needs.check.outputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download the bundles
+        uses: actions/download-artifact@v8
+        with:
+          path: bundles
+
+      - name: Import, sign, and smoke test the repository
         env:
           FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
         run: |
@@ -75,18 +110,14 @@ jobs:
           gpg --armor --export 2600902022BDB589 > pubkey.asc
           mkdir -p repo
           ostree --repo=repo init --mode=archive
-          flatpak build-import-bundle --gpg-sign=2600902022BDB589 repo doru/apps/desktop/release/*.flatpak
+          flatpak build-import-bundle --gpg-sign=2600902022BDB589 repo bundles/flatpak-x86_64/*.flatpak
+          flatpak build-import-bundle --gpg-sign=2600902022BDB589 repo bundles/flatpak-arm64/*.flatpak
           flatpak build-update-repo --gpg-sign=2600902022BDB589 repo
-
-      - name: Smoke test the install from the built repo
-        if: steps.check.outputs.version != ''
-        run: |
           flatpak remote-add --user --gpg-import=pubkey.asc local "file://${PWD}/repo"
           flatpak install --user -y local org.doru.doru//stable
           flatpak info org.doru.doru
 
       - name: Publish the repository to the pages branch
-        if: steps.check.outputs.version != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -97,17 +128,16 @@ jobs:
           cp -a ../repo/. .
           cp ../borisovodov.flatpakrepo .
           git add -A
-          git commit -q -m "Build org.doru.doru ${{ steps.check.outputs.version }}"
+          git commit -q -m "Build org.doru.doru ${{ needs.check.outputs.version }}"
           git push -f origin pages
           cd ..
           git worktree remove pages-worktree
 
       - name: Record the built version
-        if: steps.check.outputs.version != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo "${{ steps.check.outputs.version }}" > org.doru.doru/version.txt
+          echo "${{ needs.check.outputs.version }}" > org.doru.doru/version.txt
           git add org.doru.doru/version.txt
-          git commit -q -m "org.doru.doru ${{ steps.check.outputs.version }}"
+          git commit -q -m "org.doru.doru ${{ needs.check.outputs.version }}"
           git push
