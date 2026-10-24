@@ -1,0 +1,111 @@
+name: Build flatpaks
+
+on:
+  schedule:
+    # Every four hours, like the other channel bots. The check is a single
+    # API call when nothing changed.
+    - cron: '41 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  doru:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check for a new doru release
+        id: check
+        run: |
+          tag=$(curl -fsSL https://api.github.com/repos/borisovodov/doru/releases/latest | jq -r '.tag_name')
+          version="${tag#v}"
+          built=$(cat org.doru.doru/version.txt 2>/dev/null || echo none)
+          echo "latest release: ${version}, last built: ${built}"
+          if [ "${version}" = "${built}" ]; then
+            echo "Up to date; nothing to build."
+            exit 0
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout doru at the release tag
+        if: steps.check.outputs.version != ''
+        uses: actions/checkout@v5
+        with:
+          repository: borisovodov/doru
+          ref: ${{ steps.check.outputs.tag }}
+          path: doru
+
+      - uses: actions/setup-node@v5
+        if: steps.check.outputs.version != ''
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: doru/package-lock.json
+
+      - name: Install flatpak tooling
+        if: steps.check.outputs.version != ''
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq flatpak flatpak-builder
+          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build the app and the flatpak bundle
+        if: steps.check.outputs.version != ''
+        working-directory: doru
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci
+          cd apps/desktop
+          npx electron-vite build
+          # The BaseApp/runtime versions match modern Electron; the bundler
+          # installs them from Flathub on first use.
+          npx electron-builder --linux flatpak --publish never \
+            -c.flatpak.baseVersion=26.08 -c.flatpak.runtimeVersion=25.08
+
+      - name: Import the bundle into the OSTree repository
+        if: steps.check.outputs.version != ''
+        env:
+          FLATPAK_GPG_KEY: ${{ secrets.FLATPAK_GPG_KEY }}
+        run: |
+          export GNUPGHOME=$(mktemp -d)
+          printf '%s' "${FLATPAK_GPG_KEY}" | gpg --batch --import
+          mkdir -p repo
+          flatpak build-import-bundle --gpg-sign=2600902022BDB589 repo doru/apps/desktop/release/*.flatpak
+          flatpak build-update-repo --gpg-sign=2600902022BDB589 repo
+
+      - name: Smoke test the install from the built repo
+        if: steps.check.outputs.version != ''
+        run: |
+          flatpak remote-add --user --no-gpg-verify local "file://${PWD}/repo"
+          flatpak install --user -y local org.doru.doru
+          flatpak info org.doru.doru
+
+      - name: Publish the repository to the pages branch
+        if: steps.check.outputs.version != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git worktree add --orphan pages-worktree
+          cd pages-worktree
+          git rm -rf -q . 2>/dev/null || true
+          cp -a ../repo/. .
+          cp ../borisovodov.flatpakrepo .
+          echo flatpak.doru.family > CNAME
+          git add -A
+          git commit -q -m "Build org.doru.doru ${{ steps.check.outputs.version }}"
+          git push -f origin pages
+          cd ..
+          git worktree remove pages-worktree
+
+      - name: Record the built version
+        if: steps.check.outputs.version != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "${{ steps.check.outputs.version }}" > org.doru.doru/version.txt
+          git add org.doru.doru/version.txt
+          git commit -q -m "org.doru.doru ${{ steps.check.outputs.version }}"
+          git push
