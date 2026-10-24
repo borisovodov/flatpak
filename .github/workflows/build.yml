@@ -63,7 +63,8 @@ jobs:
           # The BaseApp/runtime versions match modern Electron; the bundler
           # installs them from Flathub on first use.
           npx electron-builder --linux flatpak --publish never \
-            -c.flatpak.baseVersion=26.08 -c.flatpak.runtimeVersion=25.08
+            -c.flatpak.baseVersion=26.08 -c.flatpak.runtimeVersion=25.08 \
+            -c.flatpak.branch=stable
 
       - name: Import the bundle into the OSTree repository
         if: steps.check.outputs.version != ''
@@ -81,7 +82,7 @@ jobs:
         if: steps.check.outputs.version != ''
         run: |
           flatpak remote-add --user --gpg-import=pubkey.asc local "file://${PWD}/repo"
-          flatpak install --user -y local org.doru.doru
+          flatpak install --user -y local org.doru.doru//stable
           flatpak info org.doru.doru
 
       - name: Publish the repository to the pages branch

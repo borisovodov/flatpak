@@ -7,8 +7,8 @@ through `flatpak update`.
 ## Install
 
 ```sh
-flatpak remote-add --user borisovodov https://borisovodov.github.io/flatpak/borisovodov.flatpakrepo
-flatpak install borisovodov org.doru.doru
+flatpak remote-add --user doru https://borisovodov.github.io/flatpak/borisovodov.flatpakrepo
+flatpak install doru org.doru.doru
 ```
 
 The repository is signed with a dedicated GPG key (embedded in the
