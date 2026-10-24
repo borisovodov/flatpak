@@ -30,8 +30,11 @@ it with the GPG key (secret `FLATPAK_GPG_KEY`), smoke-installs it from the
 built repository, and publishes it to the `pages` branch — served by GitHub
 Pages at the URL above.
 
-A `CNAME` for `flatpak.doru.family` is already prepared in the `pages`
-branch; until the DNS record points at GitHub Pages, the
+A custom domain is easy to add later: create the DNS CNAME
+`flatpak.doru.family -> borisovodov.github.io`, add a `CNAME` file
+(containing that domain) to the `pages` branch, and switch the `Url` in
+`borisovodov.flatpakrepo` — GitHub Pages then serves the remote at
+https://flatpak.doru.family. Until that happens, the
 `borisovodov.github.io` URL above is authoritative.
 
 ## Adding another app

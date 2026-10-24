@@ -95,7 +95,6 @@ jobs:
           git rm -rf -q . 2>/dev/null || true
           cp -a ../repo/. .
           cp ../borisovodov.flatpakrepo .
-          echo flatpak.doru.family > CNAME
           git add -A
           git commit -q -m "Build org.doru.doru ${{ steps.check.outputs.version }}"
           git push -f origin pages
