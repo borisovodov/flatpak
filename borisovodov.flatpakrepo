@@ -1,6 +1,6 @@
 [Flatpak Repo]
 Title=Boris Ovodov's Flatpak Remote
-Url=https://borisovodov.github.io/flatpak
+Url=https://flatpak.doru.family
 Homepage=https://doru.family
 Comment=Flatpak builds of Boris Ovodov's applications
 Description=Flatpak builds of Boris Ovodov's applications, signed with this repository's GPG key.
