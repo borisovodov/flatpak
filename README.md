@@ -7,7 +7,7 @@ through `flatpak update`.
 ## Install
 
 ```sh
-flatpak remote-add --user borisovodov https://borisovodov.github.io/flatpak/borisovodov.flatpakrepo
+flatpak remote-add borisovodov https://borisovodov.github.io/flatpak/borisovodov.flatpakrepo --user
 flatpak install borisovodov org.doru.doru
 ```
 
