@@ -72,26 +72,10 @@ jobs:
             "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
 
 
-      - name: Diagnose compose on the stamped metainfo
-        run: |
-          python3 scripts/stamp-metainfo.py \
-            doru/packaging/metadata/org.doru.doru.metainfo.xml \
-            "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
-          rm -rf /tmp/appdir /tmp/as-out
-          mkdir -p /tmp/appdir/share/metainfo /tmp/appdir/share/applications /tmp/appdir/share/icons/hicolor/256x256/apps
-          cp doru/packaging/metadata/org.doru.doru.metainfo.xml /tmp/appdir/share/metainfo/
-          printf '[Desktop Entry]\nName=Doru\nExec=doru\nType=Application\nIcon=org.doru.doru\nCategories=Education;Science;\n' > /tmp/appdir/share/applications/org.doru.doru.desktop
-          cp doru/apps/desktop/resources/icon.png /tmp/appdir/share/icons/hicolor/256x256/apps/org.doru.doru.png
-          echo "--- app dir layout:"
-          find /tmp/appdir -type f | sed 's|/tmp/appdir/||'
-          echo "--- compose:"
-          appstreamcli compose --prefix=/ --origin=flatpak --result-root=/tmp/as-out /tmp/appdir 2>&1 || true
-
       - name: Build the app and the flatpak bundle
         working-directory: doru
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          DEBUG: '@malept/flatpak-bundler'
         run: |
           npm ci
           cd apps/desktop
