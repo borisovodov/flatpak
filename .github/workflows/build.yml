@@ -65,19 +65,23 @@ jobs:
           sudo apt-get install -y -qq flatpak flatpak-builder ostree appstream-util appstream
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
-      - name: Diagnose compose prerequisites
-        run: |
-          echo "--- screenshot URL:"
-          curl -sI https://raw.githubusercontent.com/borisovodov/doru/main/packaging/metadata/screenshots/tree.png | head -3
-          echo "--- runner appstreamcli validate:"
-          appstreamcli validate --explain --no-net doru/packaging/metadata/org.doru.doru.metainfo.xml || true
-
       - name: Stamp the release version into the metainfo
         run: |
           python3 scripts/stamp-metainfo.py \
             doru/packaging/metadata/org.doru.doru.metainfo.xml \
             "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
 
+
+      - name: Diagnose compose on the stamped metainfo
+        run: |
+          python3 scripts/stamp-metainfo.py \
+            doru/packaging/metadata/org.doru.doru.metainfo.xml \
+            "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
+          rm -rf /tmp/appdir /tmp/as-out
+          mkdir -p /tmp/appdir/share/metainfo /tmp/appdir/share/applications
+          cp doru/packaging/metadata/org.doru.doru.metainfo.xml /tmp/appdir/share/metainfo/
+          printf '[Desktop Entry]\nName=Doru\nExec=doru\nType=Application\nIcon=org.doru.doru\n' > /tmp/appdir/share/applications/org.doru.doru.desktop
+          appstreamcli compose --prefix=/tmp/appdir --origin=flatpak --result-root=/tmp/as-out /tmp/appdir 2>&1 || true
 
       - name: Build the app and the flatpak bundle
         working-directory: doru
