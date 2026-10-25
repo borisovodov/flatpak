@@ -76,7 +76,7 @@ jobs:
         working-directory: doru
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-          DEBUG: flatpak-bundler
+          DEBUG: '@malept/flatpak-bundler'
         run: |
           npm ci
           cd apps/desktop
