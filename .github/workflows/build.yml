@@ -68,7 +68,7 @@ jobs:
       - name: Stamp the release version into the metainfo
         run: |
           python3 scripts/stamp-metainfo.py \
-            doru/packaging/metadata/org.doru.doru.metainfo.xml \
+            doru/distribution/metadata/org.doru.doru.metainfo.xml \
             "${{ needs.check.outputs.version }}" "$(date -u +%Y-%m-%d)"
 
 
