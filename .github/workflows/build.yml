@@ -65,6 +65,13 @@ jobs:
           sudo apt-get install -y -qq flatpak flatpak-builder ostree appstream-util appstream
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
+      - name: Diagnose compose prerequisites
+        run: |
+          echo "--- screenshot URL:"
+          curl -sI https://raw.githubusercontent.com/borisovodov/doru/main/packaging/metadata/screenshots/tree.png | head -3
+          echo "--- runner appstreamcli validate:"
+          appstreamcli validate --explain --no-net doru/packaging/metadata/org.doru.doru.metainfo.xml || true
+
       - name: Stamp the release version into the metainfo
         run: |
           python3 scripts/stamp-metainfo.py \
