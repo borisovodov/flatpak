@@ -82,6 +82,12 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
           npm ci
+          # The llama-server engine ships via extraResources from
+          # apps/desktop/build/llama/<platform>-<arch>; fetch it first, the
+          # way the doru package scripts do. Without it the flatpak lacks
+          # resources/llama/llama-server and Dóru AI chats fail with
+          # "llama-server binary not found".
+          node scripts/fetch-llama.ts
           cd apps/desktop
           npx electron-vite build
           npx electron-builder --linux flatpak --publish never
@@ -94,6 +100,16 @@ jobs:
           flatpak remote-add --user --no-gpg-verify smoke "file:///tmp/smoke-repo"
           flatpak install --user -y smoke org.doru.doru//stable
           flatpak info org.doru.doru
+          # The local-inference engine must be inside the bundle: list the
+          # imported tree and fail loudly if resources/llama/llama-server
+          # is absent (a build without fetch-llama.ts would otherwise break
+          # silently until the first chat).
+          REF=$(ostree --repo=/tmp/smoke-repo refs | grep '^app/org.doru.doru/' | head -1)
+          ostree --repo=/tmp/smoke-repo ls -R "$REF" > /tmp/smoke-listing.txt
+          if ! grep 'resources/llama/llama-server' /tmp/smoke-listing.txt; then
+            echo "::error::llama-server missing from the flatpak bundle"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v7
         with:
